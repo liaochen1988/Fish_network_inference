@@ -1,7 +1,7 @@
-%   This function estimates GLV parameters using linear regression
-%   Last modified by Chen Liao on May 17, 2019
+%   This function estimates gLV parameters using linear regression
+%   Last modified by Chen Liao on Dec 3, 2019
 
-function [optBeta,dL,X,C,d] = glv_pe_linreg(time, abundance, lowerbound, upperbound, trainSet, varargin)
+function [optBeta,dL,X,C,d] = glv_linreg(time, abundance, lowerbound, upperbound, varargin)
 
 %   abundance has the dimension [# of time] x [# of species]
 ny = size(abundance, 1);  %   # of time
@@ -51,10 +51,6 @@ end
 d = dL';    % d of dimension [# of time] x [# of species]
 d = d(:);
 
-%   only keep the training data
-C = C(trainSet,:);
-d = d(trainSet);
-
 %   reformat lower and upper bounds
 lb = lowerbound';
 lb = lb(:);
@@ -65,7 +61,13 @@ ub = ub(:);
 options_lsqlin = optimoptions('lsqlin','Algorithm','interior-point','display','off');
 [optBeta, ~, ~, exitflag] = lsqlin(C,d,[],[],[],[],lb,ub,[],options_lsqlin);
 if (exitflag <= 0)
-    error('lsqlin fails to converge.');
+    % let us give another try: use trust-region-reflective algorithm
+    % instead
+    options_lsqlin = optimoptions('lsqlin','Algorithm','trust-region-reflective','display','off');
+    [optBeta, ~, ~, exitflag] = lsqlin(C,d,[],[],[],[],lb,ub+1e-6,[],options_lsqlin); 
+    if (exitflag <= 0)
+        error('lsqlin fails to converge.');
+    end
 end
 
 optBeta = reshape(optBeta, ns+1, ns);
